@@ -7,7 +7,14 @@ import { weddingConfig } from "../config/wedding.config";
 
 const { rsvp } = weddingConfig;
 
-const EMPTY = { name: "", attendance: "", message: "", botcheck: "" };
+const EMPTY = {
+  name: "",
+  attendance: "",
+  guestCount: 0,
+  guests: [],
+  message: "",
+  botcheck: "",
+};
 
 export function RsvpSection() {
   const [values, setValues] = useState(EMPTY);
@@ -21,6 +28,52 @@ export function RsvpSection() {
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: false }));
     }
+  };
+
+  const updateGuestCount = (event) => {
+    const count = Number(event.target.value);
+    setValues((prev) => {
+      const current = prev.guests;
+      let nextGuests = current;
+      if (count > current.length) {
+        nextGuests = [
+          ...current,
+          ...Array.from({ length: count - current.length }, () => ({
+            name: "",
+            type: "",
+          })),
+        ];
+      } else if (count < current.length) {
+        nextGuests = current.slice(0, count);
+      }
+      return { ...prev, guestCount: count, guests: nextGuests };
+    });
+    if (errors.guestCount || errors.guests) {
+      setErrors((prev) => ({ ...prev, guestCount: false, guests: false }));
+    }
+  };
+
+  const clearGuestFieldError = (index, field) => {
+    if (!errors.guests) {
+      return;
+    }
+    setErrors((prev) => ({
+      ...prev,
+      guests: prev.guests.map((guest, i) =>
+        i === index && guest ? { ...guest, [field]: false } : guest,
+      ),
+    }));
+  };
+
+  const updateGuest = (index) => (field) => (event) => {
+    const value = event.target.value;
+    setValues((prev) => ({
+      ...prev,
+      guests: prev.guests.map((guest, i) =>
+        i === index ? { ...guest, [field]: value } : guest,
+      ),
+    }));
+    clearGuestFieldError(index, field);
   };
 
   const handleSubmit = async (event) => {
@@ -40,13 +93,6 @@ export function RsvpSection() {
       setSubmitError(true);
       setStatus("idle");
     }
-  };
-
-  const reset = () => {
-    setValues(EMPTY);
-    setErrors({});
-    setSubmitError(false);
-    setStatus("idle");
   };
 
   const submitting = status === "submitting";
@@ -79,13 +125,6 @@ export function RsvpSection() {
                   <p className="mx-auto mt-4 max-w-md font-sans text-sm text-charcoal-soft">
                     {rsvp.success.message}
                   </p>
-                  <button
-                    type="button"
-                    onClick={reset}
-                    className="mt-8 rounded-full border border-gold-deep/40 px-8 py-3 font-sans text-xs tracking-[0.3em] text-gold-deep uppercase transition-colors hover:bg-gold hover:text-ivory"
-                  >
-                    Enviar outra resposta
-                  </button>
                 </motion.div>
               ) : (
                 <motion.form
@@ -178,6 +217,129 @@ export function RsvpSection() {
                       </span>
                     )}
                   </fieldset>
+
+                  {values.attendance === "yes" && (
+                    <div className="flex flex-col gap-2">
+                      <label
+                        htmlFor="rsvp-guest-count"
+                        className="font-sans text-xs tracking-[0.25em] text-charcoal-soft uppercase"
+                      >
+                        {rsvp.guestCountLabel}
+                      </label>
+                      <input
+                        id="rsvp-guest-count"
+                        name="guestCount"
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={values.guestCount}
+                        onChange={updateGuestCount}
+                        aria-invalid={Boolean(errors.guestCount)}
+                        aria-describedby={errors.guestCount ? "rsvp-guest-count-error" : undefined}
+                        className="rounded-sm border border-gold/30 bg-ivory px-4 py-3 font-sans text-charcoal outline-none transition-colors focus:border-gold"
+                      />
+                      {errors.guestCount && (
+                        <span
+                          id="rsvp-guest-count-error"
+                          role="alert"
+                          className="font-sans text-xs text-red-700"
+                        >
+                          {rsvp.errors.guestCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {values.attendance === "yes" &&
+                    values.guestCount > 0 &&
+                    values.guests.map((guest, index) => {
+                      const guestErrors = errors.guests?.[index] || {};
+                      return (
+                        <div
+                          key={index}
+                          className="flex flex-col gap-4 rounded-sm border border-gold/20 bg-ivory-deep/40 px-4 py-5"
+                        >
+                          <p className="font-serif text-xl text-charcoal">
+                            {rsvp.guestBlockLabel} {index + 1}
+                          </p>
+
+                          <div className="flex flex-col gap-2">
+                            <label
+                              htmlFor={`rsvp-guest-name-${index}`}
+                              className="font-sans text-xs tracking-[0.25em] text-charcoal-soft uppercase"
+                            >
+                              {rsvp.guestNameLabel}
+                            </label>
+                            <input
+                              id={`rsvp-guest-name-${index}`}
+                              name={`guest-name-${index}`}
+                              type="text"
+                              value={guest.name}
+                              onChange={updateGuest(index)("name")}
+                              placeholder={rsvp.guestNamePlaceholder}
+                              aria-invalid={Boolean(guestErrors.name)}
+                              aria-describedby={
+                                guestErrors.name
+                                  ? `rsvp-guest-name-${index}-error`
+                                  : undefined
+                              }
+                              className="rounded-sm border border-gold/30 bg-ivory px-4 py-3 font-sans text-charcoal outline-none transition-colors focus:border-gold"
+                            />
+                            {guestErrors.name && (
+                              <span
+                                id={`rsvp-guest-name-${index}-error`}
+                                role="alert"
+                                className="font-sans text-xs text-red-700"
+                              >
+                                {rsvp.errors.guestName}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-3">
+                            <p className="mb-1 font-sans text-xs tracking-[0.25em] text-charcoal-soft uppercase">
+                              {rsvp.guestTypeLabel}
+                            </p>
+                            <div className="flex flex-wrap gap-3">
+                              {[
+                                { value: "adult", label: rsvp.guestTypeAdult },
+                                { value: "child", label: rsvp.guestTypeChild },
+                              ].map((option) => (
+                                <label
+                                  key={option.value}
+                                  className="flex cursor-pointer items-center gap-3 rounded-sm border border-gold/20 px-4 py-3 font-sans text-sm text-charcoal transition-colors hover:border-gold/50 has-[:checked]:border-gold has-[:checked]:bg-gold/5"
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`guest-type-${index}`}
+                                    value={option.value}
+                                    checked={guest.type === option.value}
+                                    onChange={updateGuest(index)("type")}
+                                    className="h-4 w-4 accent-[#6f8a63]"
+                                    aria-invalid={Boolean(guestErrors.type)}
+                                    aria-describedby={
+                                      guestErrors.type
+                                        ? `rsvp-guest-type-${index}-error`
+                                        : undefined
+                                    }
+                                  />
+                                  {option.label}
+                                </label>
+                              ))}
+                            </div>
+                            {guestErrors.type && (
+                              <span
+                                id={`rsvp-guest-type-${index}-error`}
+                                role="alert"
+                                className="font-sans text-xs text-red-700"
+                              >
+                                {rsvp.errors.guestType}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
 
                   <div className="flex flex-col gap-2">
                     <label
